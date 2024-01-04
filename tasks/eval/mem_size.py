@@ -16,6 +16,11 @@ from tasks.eval.util.env import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
+from tasks.eval.util.plot import (
+    FIGURE_WIDTH,
+    LABELS_TO_REPLACE,
+    SHORT_FIGURE_HEIGHT,
+)
 from tasks.eval.util.pod import wait_for_pod_ready_and_get_ts
 from tasks.eval.util.setup import setup_baseline
 from tasks.util.k8s import template_k8s_file
@@ -164,9 +169,10 @@ def plot(ctx):
         }
 
     # Plot throughput-latency
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
     baselines = list(BASELINES.keys())
     baselines.remove("docker")
+    baselines.remove("coco-nosev-ovmf")
     for bline in baselines:
         xs = sorted([int(k) for k in results_dict[bline].keys()])
         ys = [results_dict[bline][str(x)]["mean"] for x in xs]
@@ -176,17 +182,17 @@ def plot(ctx):
             ys,
             yerr=ys_err,
             fmt="o-",
-            label=bline,
+            label=LABELS_TO_REPLACE[bline] if bline in LABELS_TO_REPLACE else bline,
         )
 
     # Misc
-    xlabels = ["{}".format(int(x * get_default_vm_mem_size() / 1024)) for x in xs]
+    # xlabels = ["{}".format(int(x * get_default_vm_mem_size() / 1024)) for x in xs]
+    xlabels = ["{}".format(int(x * 2048 / 1024)) for x in xs]
     ax.set_xticks(xs, xlabels)
     ax.set_xlabel("Initial VM memory size [GB]")
     ax.set_ylabel("Time [s]")
     ax.set_ylim(bottom=0)
-    ax.set_title("Impact of initial VM memory size on start-up time")
-    ax.legend()
+    ax.legend(ncols=3)
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "mem_size.{}".format(plot_format))

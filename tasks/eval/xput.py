@@ -18,6 +18,11 @@ from tasks.eval.util.env import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
+from tasks.eval.util.plot import (
+    FIGURE_WIDTH,
+    LABELS_TO_REPLACE,
+    SHORT_FIGURE_HEIGHT,
+)
 from tasks.eval.util.setup import setup_baseline
 from tasks.util.k8s import template_k8s_file
 from tasks.util.kubeadm import get_pod_names_in_ns, run_kubectl_command
@@ -200,8 +205,9 @@ def plot(ctx):
         }
 
     # Plot throughput-latency
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
     baselines = list(BASELINES.keys())
+    baselines.remove("coco-nosev-ovmf")
     for bline in baselines:
         xs = sorted([int(k) for k in results_dict[bline].keys()])
         ys = [results_dict[bline][str(x)]["mean"] for x in xs]
@@ -211,15 +217,14 @@ def plot(ctx):
             ys,
             yerr=ys_err,
             fmt="o-",
-            label=bline,
+            label=LABELS_TO_REPLACE[bline] if bline in LABELS_TO_REPLACE else bline,
         )
 
     # Misc
     ax.set_xlabel("# concurrent Knative services")
     ax.set_ylabel("Time [s]")
     ax.set_ylim(bottom=0)
-    ax.set_title("Throughput-Latency of Knative Servce Instantiation")
-    ax.legend()
+    ax.legend(ncols=2, loc="upper left", fontsize=8)
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "xput.{}".format(plot_format))

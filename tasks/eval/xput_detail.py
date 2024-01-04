@@ -17,6 +17,10 @@ from tasks.eval.util.env import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
+from tasks.eval.util.plot import (
+    FIGURE_WIDTH,
+    SHORT_FIGURE_HEIGHT,
+)
 from tasks.eval.util.setup import setup_baseline
 from tasks.util.containerd import get_ts_for_containerd_event
 from tasks.util.env import LOCAL_REGISTRY_URL
@@ -253,12 +257,12 @@ def plot(ctx):
                 }
 
     ordered_events = {
-        "schedule + make-pod-sandbox": ("PodScheduled", "SandboxReady"),
-        "pull-images + start-containrs": ("SandboxReady", "ContainersReady"),
+        "cVM-startup": ("PodScheduled", "SandboxReady"),
+        "pull-images": ("SandboxReady", "ContainersReady"),
     }
     color_for_event = {
-        "schedule + make-pod-sandbox": "blue",
-        "pull-images + start-containrs": "yellow",
+        "cVM-startup": "blue",
+        "pull-images": "yellow",
     }
     pattern_for_repo = {EXPERIMENT_IMAGE_REPO: "x", LOCAL_REGISTRY_URL: "|"}
     name_for_repo = {EXPERIMENT_IMAGE_REPO: "ghcr", LOCAL_REGISTRY_URL: "local"}
@@ -270,7 +274,7 @@ def plot(ctx):
     # Time-series of the different services instantiation
     # --------------------------
 
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
 
     bar_height = 0.5
 
@@ -326,13 +330,8 @@ def plot(ctx):
     ytick_labels = ["S{}".format(i) for i in range(len(service_ids))]
     ax.set_yticks(yticks)
     ax.set_yticks(yticks_minor, minor=True)
-    ax.set_yticklabels(ytick_labels, minor=True)
+    ax.set_yticklabels(ytick_labels, minor=True, fontsize=8)
     ax.set_yticklabels([])
-    title_str = "Breakdown of the time spent starting 16 services in parallel\n"
-    title_str += "(baseline: {})\n".format(
-        baseline,
-    )
-    ax.set_title(title_str)
 
     # Manually craft the legend
     legend_handles = []
@@ -350,10 +349,10 @@ def plot(ctx):
                 hatch=pattern_for_repo[repo],
                 facecolor="white",
                 edgecolor="black",
-                label="Image registry: {}".format(name_for_repo[repo]),
+                label="registry: {}".format(name_for_repo[repo]),
             )
         )
-    ax.legend(handles=legend_handles, bbox_to_anchor=(1.05, 1.05))
+    ax.legend(handles=legend_handles, fontsize=8, loc="lower right") # bbox_to_anchor=(1.05, 1.05))
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "xput_detail.{}".format(plot_format))

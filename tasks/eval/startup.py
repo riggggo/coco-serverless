@@ -20,11 +20,19 @@ from tasks.eval.util.env import (
     RESULTS_DIR,
     PLOTS_DIR,
 )
+from tasks.eval.util.plot import (
+    SHORT_FIGURE_HEIGHT,
+    FIGURE_WIDTH,
+    LABELS_TO_REPLACE,
+)
 from tasks.eval.util.setup import setup_baseline
 from tasks.util.containerd import get_start_end_ts_for_containerd_event
 from tasks.util.k8s import get_container_id_from_pod, template_k8s_file
 from tasks.util.kubeadm import get_pod_names_in_ns, run_kubectl_command
 from time import sleep, time
+
+THIS_BASELINES = list(BASELINES.keys())
+THIS_BASELINES.remove("coco-nosev-ovmf")
 
 
 def do_run(result_file, num_run, service_file, flavour, warmup=False):
@@ -152,7 +160,7 @@ def run(ctx, baseline=None):
     This benchmark compares the time required to spin-up a pod (i.e. time for
     the pod to be in `Running` state) as reported by Kubernetes.
     """
-    baselines_to_run = list(BASELINES.keys())
+    baselines_to_run = THIS_BASELINES
     if baseline is not None:
         if baseline not in baselines_to_run:
             print(
@@ -270,8 +278,8 @@ def plot(ctx):
     # Stacked bar chart comparing different baselines
     # --------------------------
 
-    fig, ax = subplots()
-    xlabels = list(BASELINES.keys())
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
+    xlabels = THIS_BASELINES
     xs = range(len(xlabels))
     num_flavours = len(BASELINE_FLAVOURS)
     space_between_baselines = 0.2
@@ -358,22 +366,32 @@ def plot(ctx):
                 )
                 for i in range(len(acc_ys)):
                     acc_ys[i] += ys[i]
+            if label in ["image-pull", "make-pod-sandbox"]:
+                print(label, flavour, list(zip(xlabels, ys)))
+
+        print("acc", flavour, list(zip(xlabels, acc_ys)))
 
     # Misc
-    ax.set_xticks(xs, xlabels, rotation=45)
-    ax.set_xlabel("Baseline")
+    this_xlabels = []
+    for ind, xlabel in enumerate(xlabels):
+        if xlabel in LABELS_TO_REPLACE:
+            xlabels[ind] = LABELS_TO_REPLACE[xlabel]
+    ax.set_xticks(xs, xlabels, rotation=15)
     ax.set_ylabel("Time [s]")
-    ax.set_title(
-        "End-to-end latency to start a pod\n(cold start='{}' - warm start='{}')".format(
-            pattern_for_flavour["cold"], pattern_for_flavour["warm"]
-        )
-    )
 
     # Manually craft the legend
     legend_handles = []
     for ev in color_for_event:
+        # SKip legend entries that we don't need as they are too small
+        if ev in ["create-container", "start-container"]:
+            continue
+
         legend_handles.append(Patch(color=color_for_event[ev], label=ev))
-    ax.legend(handles=legend_handles)
+
+    # Add two entries for cold/warm starts
+    for fl in pattern_for_flavour:
+        legend_handles.append(Patch(facecolor="white", edgecolor="black", hatch=pattern_for_flavour[fl], label=fl))
+    ax.legend(handles=legend_handles, fontsize=8)
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "startup.{}".format(plot_format))

@@ -1,6 +1,7 @@
 from glob import glob
 from invoke import task
 from matplotlib.pyplot import figure
+from matplotlib.transforms import ScaledTranslation
 from os import makedirs
 from os.path import basename, exists, join
 from pandas import read_csv
@@ -15,6 +16,11 @@ from tasks.eval.util.env import (
     INTER_RUN_SLEEP_SECS,
     RESULTS_DIR,
     PLOTS_DIR,
+)
+from tasks.eval.util.plot import (
+    FIGURE_WIDTH,
+    LABELS_TO_REPLACE,
+    SHORT_FIGURE_HEIGHT,
 )
 from tasks.eval.util.pod import (
     get_sandbox_id_from_pod_name,
@@ -383,7 +389,8 @@ def plot(ctx):
                 "list": groupped.get_group(event)["TimeStampMs"].to_list(),
             }
 
-    fig = figure(figsize=(8, 6))
+    # fig = figure(figsize=(8, 6))
+    fig = figure(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT - 0.25))
     ax1 = fig.add_subplot(2, 2, 1)
     ax2 = fig.add_subplot(2, 2, 3)
     ax3 = fig.add_subplot(2, 2, 2)
@@ -403,7 +410,6 @@ def plot(ctx):
             axis="y", which="both", left=False, right=False, labelbottom=False
         )
         ax.set_yticklabels([])
-        ax.set_title("Baseline: {}".format(bline))
 
     # Update the x limit
     for ax in flame_axes:
@@ -443,11 +449,12 @@ def plot(ctx):
     ax3.set_ylim(18, 20)
     ax3.set_yticks([19, 20])
     ax4.set_ylim(0, 7.5)
+    ax4.set_yticks([0, 2, 4, 6])
     # hide the spines between ax and ax2
     ax3.spines.bottom.set_visible(False)
     ax4.spines.top.set_visible(False)
     ax4.xaxis.tick_top()
-    ax3.tick_params(labeltop=False, bottom=False, labelbottom=False)
+    ax3.tick_params(labeltop=False, bottom=False, labelbottom=False, labelsize=8)
     ax4.xaxis.tick_bottom()
     # Diagonal lines in the axes
     d = 0.5  # proportion of vertical to horizontal extent of the slanted line
@@ -464,16 +471,20 @@ def plot(ctx):
     ax4.plot([0, 1], [1, 1], transform=ax4.transAxes, **kwargs)
     fig.subplots_adjust(hspace=0.05)  # adjust space between axes
     ax4.axhline(y=1, color="black", linestyle="--")
-    ax3.set_title("OVMF Boot Event Slowdown")
-    ax4.set_ylabel("Slowdon [fw-sig-enc/nosev-ovmf]")
-    ax4.yaxis.set_label_coords(-0.1, 1)
+    ax4.set_ylabel("Slowdown [CC-Knative/nosev-ovmf]", fontsize=8)
+    ax4.yaxis.set_label_coords(-0.12, 0.75)
 
     # Set the labels
     ax4.set_xticks(xs)
-    ax4.set_xticklabels(xlabels, rotation=45)
+    ax4.set_xticklabels(xlabels, rotation=20, fontsize=8)
 
-    # fig.suptitle("VM Start-Up with different guest memory sizes")
-    # fig.subplots_adjust(hspace=0.5)
+    # Left-shift all long xlabels
+    for label in ax4.xaxis.get_majorticklabels():
+        dx = -10/72.
+        dy = 0/72.
+        offset = ScaledTranslation(dx, dy, fig.dpi_scale_trans)
+        if len(label.get_text()) > 3:
+            label.set_transform(label.get_transform() + offset)
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "ovmf_detail.{}".format(plot_format))

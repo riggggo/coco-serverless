@@ -17,6 +17,11 @@ from tasks.eval.util.env import (
     RESULTS_DIR,
     PLOTS_DIR,
 )
+from tasks.eval.util.plot import (
+    FIGURE_HEIGHT,
+    FIGURE_WIDTH,
+    SHORT_FIGURE_HEIGHT,
+)
 from tasks.eval.util.pod import (
     get_sandbox_id_from_pod_name,
     wait_for_pod_ready_and_get_ts,
@@ -343,9 +348,9 @@ def do_flame_plot(ax, results_dict, legend_on_bars=False, nosev=False):
     # found a way to programatically place them well, so the (x, y) coordinates
     # for this labels will have to be hard-coded
     short_bars = {
-        "pre-attestation": (1, bar_height * 3.5),
-        "kata-agent": (5.5, bar_height * 3.1),
-        "ovmf-measure-verify": (4.5, bar_height * 4.5),
+        "pre-attestation": (0.8, bar_height * 3.5),
+        "kata-agent": (5.6, bar_height * 3.40),
+        "ovmf-measure-verify": (4.4, bar_height * 4.5),
         "guest-kernel": (5.2, bar_height * 2.5),
     }
     nosev_skip_events = [
@@ -372,6 +377,9 @@ def do_flame_plot(ax, results_dict, legend_on_bars=False, nosev=False):
         labels.append(event)
         colors.append(color_for_event[event])
 
+        if legend_on_bars:
+            print(event, x_right - x_left)
+
         if event == "make-pod-sandbox":
             x_rlim = x_right - x_left
 
@@ -384,7 +392,13 @@ def do_flame_plot(ax, results_dict, legend_on_bars=False, nosev=False):
                 x_text = x_left - x_origin + (x_right - x_left) / 4
                 y_text = (height_for_event[event] + 0.4) * bar_height
 
-            ax.text(x_text, y_text, event)
+            ax.text(x_text, y_text, event,
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": "black",
+                },
+                fontsize=8,
+            )
 
     ax.barh(
         ys,
@@ -437,17 +451,12 @@ def plot(ctx):
     # -----------------------
 
     # (baseline = "coco-fw-sig-enc" and mem_mult=1)
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
     do_flame_plot(ax, results_dict["coco-fw-sig-enc"]["1"], legend_on_bars=True)
     ax.set_xlabel("Time [s]")
     ax.tick_params(axis="y", which="both", left=False, right=False, labelbottom=False)
     ax.set_yticklabels([])
-    title_str = "Breakdown of the time to start a CoCo sandbox\n"
-    title_str += "(baseline: {}, mem_size: {} GB)".format(
-        baseline,
-        int(get_default_vm_mem_size() / 1024),
-    )
-    ax.set_title(title_str)
+
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "vm_detail.{}".format(plot_format))
         fig.savefig(plot_file, format=plot_format, bbox_inches="tight")
@@ -457,7 +466,7 @@ def plot(ctx):
     # -----------------------
 
     # mults and shared y
-    fig, axes = subplots(ncols=1, nrows=2)
+    fig, axes = subplots(ncols=1, nrows=2, figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
     x_rlim = 0
     for ax, mem_mult in zip(axes, ["1", "64"]):
         this_x_rlim = do_flame_plot(
@@ -469,11 +478,13 @@ def plot(ctx):
             axis="y", which="both", left=False, right=False, labelbottom=False
         )
         ax.set_yticklabels([])
+        """
         ax.set_title(
             "Memory size: {} GB".format(
                 int(int(mem_mult) * get_default_vm_mem_size() / 1024)
             )
         )
+        """
 
     # Update the x limit
     for ax in axes:
@@ -489,9 +500,9 @@ def plot(ctx):
                 label=event,
             )
         )
-    axes[0].legend(handles=legend_handles, ncols=2)
+    axes[0].legend(handles=legend_handles, ncols=2, fontsize=8)
 
-    fig.suptitle("VM Start-Up with different guest memory sizes")
+    # fig.suptitle("VM Start-Up with different guest memory sizes")
     fig.subplots_adjust(hspace=0.5)
 
     for plot_format in ["pdf", "png"]:
@@ -502,7 +513,7 @@ def plot(ctx):
     # Third, two flame graphs on top of each other with SEV/no-SEV (w/ out OVMF)
     # -----------------------
 
-    fig, axes = subplots(ncols=1, nrows=2)
+    fig, axes = subplots(ncols=1, nrows=2, figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
     x_rlim = 0
     for ax, bline in zip(axes, ["coco-fw-sig-enc", "coco-nosev"]):
         this_x_rlim = do_flame_plot(
@@ -514,13 +525,14 @@ def plot(ctx):
             axis="y", which="both", left=False, right=False, labelbottom=False
         )
         ax.set_yticklabels([])
-        ax.set_title("Baseline: {}".format(bline))
+        # ax.set_title("Baseline: {}".format(bline))
 
     # Update the x limit
     for ax in axes:
         ax.set_xlim(left=0, right=x_rlim)
 
     # Manually craft the legend
+    """
     legend_handles = []
     for event in ordered_events:
         legend_handles.append(
@@ -531,8 +543,9 @@ def plot(ctx):
             )
         )
     axes[1].legend(handles=legend_handles, ncols=2)
+    """
 
-    fig.suptitle("VM Start-Up with different SEV configurations")
+    # fig.suptitle("VM Start-Up with different SEV configurations")
     fig.subplots_adjust(hspace=0.5)
 
     for plot_format in ["pdf", "png"]:
@@ -543,7 +556,7 @@ def plot(ctx):
     # Fourth, two flame graphs on top of each other with SEV/no-SEV (w/ OVMF)
     # -----------------------
 
-    fig, axes = subplots(ncols=1, nrows=2)
+    fig, axes = subplots(ncols=1, nrows=2, figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
     x_rlim = 0
     for ax, bline in zip(axes, ["coco-fw-sig-enc", "coco-nosev-ovmf"]):
         this_x_rlim = do_flame_plot(
@@ -555,13 +568,13 @@ def plot(ctx):
             axis="y", which="both", left=False, right=False, labelbottom=False
         )
         ax.set_yticklabels([])
-        ax.set_title("Baseline: {}".format(bline))
+        # ax.set_title("Baseline: {}".format(bline))
 
     # Update the x limit
     for ax in axes:
         ax.set_xlim(left=0, right=x_rlim)
 
-    fig.suptitle("VM Start-Up with different SEV configurations")
+    # fig.suptitle("VM Start-Up with different SEV configurations")
     fig.subplots_adjust(hspace=0.5)
 
     for plot_format in ["pdf", "png"]:

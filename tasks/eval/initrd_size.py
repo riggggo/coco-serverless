@@ -17,6 +17,11 @@ from tasks.eval.util.env import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
+from tasks.eval.util.plot import (
+    FIGURE_WIDTH,
+    LABELS_TO_REPLACE,
+    SHORT_FIGURE_HEIGHT,
+)
 from tasks.eval.util.pod import wait_for_pod_ready_and_get_ts
 from tasks.eval.util.setup import cleanup_baseline, setup_baseline
 from tasks.util.coco import set_initrd
@@ -36,7 +41,12 @@ def get_initrd_size_mb(initrd_path):
 
 def get_default_initrd_size_mb():
     conf_file = join(KATA_CONFIG_DIR, "configuration-qemu-sev.toml")
-    initrd_path = read_value_from_toml(conf_file, "hypervisor.qemu.initrd")
+    try:
+        initrd_path = read_value_from_toml(conf_file, "hypervisor.qemu.initrd")
+    except FileNotFoundError:
+        # Helper catch to run the plots in environments where we don't have
+        # CoCo installed. Remember to change this value if the default varies
+        return 55
     return get_initrd_size_mb(initrd_path)
 
 
@@ -231,7 +241,7 @@ def plot(ctx):
         }
 
     # Plot start-up latency as we increase the `initrd` size
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
     baselines = list(results_dict.keys())
     for bline in baselines:
         xs = sorted([int(k) for k in results_dict[bline].keys()])
@@ -242,7 +252,7 @@ def plot(ctx):
             ys,
             yerr=ys_err,
             fmt="o-",
-            label=bline,
+            label=LABELS_TO_REPLACE[bline] if bline in LABELS_TO_REPLACE else bline,
         )
 
     # Misc
@@ -253,7 +263,6 @@ def plot(ctx):
     )
     ax.set_ylabel("Time [s]")
     ax.set_ylim(bottom=0)
-    ax.set_title("Impact of initrd size on start-up time")
     ax.legend()
 
     for plot_format in ["pdf", "png"]:

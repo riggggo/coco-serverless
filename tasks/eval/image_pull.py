@@ -16,6 +16,10 @@ from tasks.eval.util.env import (
     RESULTS_DIR,
     PLOTS_DIR,
 )
+from tasks.eval.util.plot import (
+    SHORT_FIGURE_HEIGHT,
+    FIGURE_WIDTH,
+)
 from tasks.eval.util.pod import wait_for_pod_ready_and_get_ts
 from tasks.eval.util.setup import setup_baseline
 from tasks.util.containerd import (
@@ -288,6 +292,14 @@ def plot(ctx):
         "pull-single-layer": 2,
         "handle-single-layer": 2,
     }
+    height_for_event_text = {
+        "image-pull": 0.25,
+        "pull-manifest": 0.5,
+        "signature-validation": 0.25,
+        "pull-layers": 1.25,
+        "pull-single-layer": 2,
+        "handle-single-layer": 2.5,
+    }
     color_for_event = {
         "image-pull": "red",
         "pull-manifest": "purple",
@@ -303,7 +315,7 @@ def plot(ctx):
     # Flame-like Graph of the CoCo sandbox start-up time
     # --------------------------
 
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=(FIGURE_WIDTH, SHORT_FIGURE_HEIGHT))
     bar_height = 0.5
     # Y coordinate of the bar
     ys = []
@@ -321,9 +333,15 @@ def plot(ctx):
     events_to_rotate = [
         "pull-manifest",
         "signature-validation",
-        "pull-single-layer",
-        "handle-single-layer",
+        # "pull-single-layer",
+        # "handle-single-layer",
     ]
+
+    # Do not include labels in both flame graphs, as they are repeated
+    events_per_ctr = {
+        "app": ["image-pull", "pull-layers", "pull-manifest", "pull-single-layer", "handle-single-layer"],
+        "sidecar": ["signature-validation"],
+    }
 
     x_origin = min(
         results_dict["app"]["StartGCImagePull"]["mean"],
@@ -344,18 +362,21 @@ def plot(ctx):
 
             # Print the label inside the bar
             x_text = x_left - x_origin + (x_right - x_left) / 4
-            y_text = (height_for_event[event] + 0.2) * bar_height
+            y_text = (height_for_event_text[event] + 0.2) * bar_height
 
-            ax.text(
-                x_text,
-                y_text,
-                event,
-                rotation=90 if event in events_to_rotate else 0,
-                bbox={
-                    "facecolor": "white",
-                    "edgecolor": "black",
-                },
-            )
+            if event in events_per_ctr[image]:
+                ax.text(
+                    x_text,
+                    y_text,
+                    # y_text - (0.3 if event in events_to_rotate else 0),
+                    event,
+                    rotation=90 if event in events_to_rotate else 0,
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "black",
+                    },
+                    fontsize=8,
+                )
 
     ax.barh(
         ys,
@@ -365,6 +386,7 @@ def plot(ctx):
         align="edge",
         label=labels,
         color=colors,
+        edgecolor="black",
         hatch=hatches,
     )
 
@@ -373,11 +395,6 @@ def plot(ctx):
     ax.set_ylim(bottom=0)
     ax.tick_params(axis="y", which="both", left=False, right=False, labelbottom=False)
     ax.set_yticklabels([])
-    title_str = "Breakdown of the time pulling OCI images\n"
-    title_str += "(baseline: {})\n".format(
-        baseline,
-    )
-    ax.set_title(title_str)
 
     # Manually craft the legend
     legend_handles = []
@@ -387,10 +404,10 @@ def plot(ctx):
                 hatch=pattern_for_image[image],
                 facecolor="white",
                 edgecolor="black",
-                label=image,
+                label=image if image != "app" else "service",
             )
         )
-    ax.legend(handles=legend_handles, bbox_to_anchor=(1.05, 1.05))
+    ax.legend(handles=legend_handles, fontsize=8) # , bbox_to_anchor=(1.05, 1.05))
 
     for plot_format in ["pdf", "png"]:
         plot_file = join(plots_dir, "image_pull.{}".format(plot_format))
