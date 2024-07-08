@@ -1,5 +1,9 @@
 from tasks.util.env import BIN_DIR, KATA_ROOT, KATA_CONFIG_DIR, PROJ_ROOT
 from os.path import join
+from os import getenv
+from dotenv import load_dotenv
+
+load_dotenv()
 
 EVAL_ROOT = join(PROJ_ROOT, "eval")
 
@@ -107,3 +111,8 @@ IMAGE_TO_ID = {
     "csegarragonz/coco-helloworld-py": "e84d0530bcded",
     "csegarragonz/coco-knative-sidecar": "b7c9cff267c66",
 }
+
+
+# GitHub User
+
+GITHUB_USER = getenv('GITHUB_USER')

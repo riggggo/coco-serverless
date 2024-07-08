@@ -1,5 +1,9 @@
 from os.path import dirname, realpath, join
+from os import getenv
 from subprocess import run
+from dotenv import load_dotenv
+
+load_dotenv()
 
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
 
@@ -62,6 +66,9 @@ APPS_SOURCE_DIR = join(PROJ_ROOT, "apps")
 
 KBS_PORT = 44444
 
+# GitHub User
+
+GITHUB_USER = getenv('GITHUB_USER')
 
 def get_node_url():
     """
